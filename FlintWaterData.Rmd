@@ -1,0 +1,264 @@
+---
+title: "Flint Water Data Analysis"
+author: "Ilse Paniagua"
+date: "10/17/2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggplot2)
+library(magrittr)
+library(GGally)
+library(prettyR)
+```
+ 
+# Establishment
+
+```{r}
+load("~/Dropbox/Grad School/UM/GIS/ICPSR_36955/DS0001/36955-0001-Data.rda")
+
+eb <- da36955.0001
+```
+
+Keep only variables of interest.
+
+```{r}
+eb %<>% select(RESULT_LEAD, NAME, CITY, ZIPCODE)
+```
+
+Factor to numeric.
+```{r}
+lbls <- sort(levels(eb$RESULT_LEAD))
+lbls <- (sub("^\\([0-9]+\\) +(.+$)", "\\1", lbls))
+eb$RESULT_LEAD <- as.numeric(sub("^\\(0*([0-9]+)\\).+$", "\\1", eb$RESULT_LEAD))
+eb$RESULT_LEAD <- add.value.labels(eb$RESULT_LEAD, lbls)
+```
+
+Replacing ND with zero.
+
+```{r}
+eb[is.na(eb)] <- 0
+```
+
+
+```{r}
+#The result is non-detected for lead if the amount of lead in the water was less than 1 ppb. m
+
+#Creating categorical variable
+eb$lead_cat <- NA
+
+#1-4
+eb$lead_cat[0<= eb$RESULT_LEAD & eb$RESULT_LEAD <=4 ] <- 1
+
+#5 to 14
+eb$lead_cat[5<= eb$RESULT_LEAD & eb$RESULT_LEAD <=14 ] <- 2
+
+#15 to 49
+eb$lead_cat[15<= eb$RESULT_LEAD & eb$RESULT_LEAD <=49 ] <- 3
+
+#50 to 149
+eb$lead_cat[50<= eb$RESULT_LEAD & eb$RESULT_LEAD <=149 ] <- 4
+
+#150 and above
+eb$lead_cat[eb$RESULT_LEAD >=150 ] <- 5
+
+```
+
+
+# Sentinel
+
+```{r}
+load("~/Dropbox/Grad School/UM/GIS/ICPSR_36955/DS0002/36955-0002-Data.rda")
+
+sentinel <- da36955.0002
+```
+
+Keep only variables of interest.
+
+```{r}
+sentinel %<>% select(RESULT_LEAD, NAME = ADDRESS, CITY, ZIPCODE= ZIP_CODE)
+```
+
+
+Replacing ND with zero.
+
+```{r}
+sentinel[is.na(sentinel)] <- 0
+```
+
+Creating categorical variable.
+```{r Sentinel Lead}
+#The result is non-detected for lead if the amount of lead in the water was less than 1 ppb. m
+
+#1-4
+sentinel$lead_cat[0<= sentinel$RESULT_LEAD & sentinel$RESULT_LEAD <=4 ] <- 1
+
+#5 to 14
+sentinel$lead_cat[5<= sentinel$RESULT_LEAD & sentinel$RESULT_LEAD <=14 ] <- 2
+
+#15 to 49
+sentinel$lead_cat[15<= sentinel$RESULT_LEAD & sentinel$RESULT_LEAD <=49 ] <- 3
+
+#50 to 149
+sentinel$lead_cat[50<= sentinel$RESULT_LEAD & sentinel$RESULT_LEAD <=149 ] <- 4
+
+#150 and above
+sentinel$lead_cat[sentinel$RESULT_LEAD >=150 ] <- 5
+```
+
+
+# School
+
+```{r}
+# School
+load("~/Dropbox/Grad School/UM/GIS/ICPSR_36955/DS0003/36955-0003-Data.rda")
+
+schools <- da36955.0003
+```
+
+Factor to numeric.
+```{r}
+lbls <- sort(levels(schools$RESULT_LEAD))
+lbls <- (sub("^\\([0-9]+\\) +(.+$)", "\\1", lbls))
+schools$RESULT_LEAD <- as.numeric(sub("^\\(0*([0-9]+)\\).+$", "\\1", schools$RESULT_LEAD))
+schools$RESULT_LEAD <- add.value.labels(schools$RESULT_LEAD, lbls)
+```
+
+```{r}
+schools %>%
+  group_by(SITEDESCRIPTION) %>%
+  summarise(count = n(), mean((RESULT_LEAD))) %>%
+  arrange(desc(count))
+```
+
+Keeping only post-filter installments.
+Treating observations within a school as independent (keeping all observations).
+
+```{r}
+#Cleaning site description variable
+schools$SITEDESCRIPTION <- str_replace_all(schools$SITEDESCRIPTION,"                                ","")
+schools$SITEDESCRIPTION <-str_replace_all(schools$SITEDESCRIPTION,"                               ","")
+schools$SITEDESCRIPTION <-str_replace_all(schools$SITEDESCRIPTION,"  ","")
+
+#Filtering
+
+schools %<>% filter(TESTINGTYPE !="(1) Pre-Fixture Replacement") %>% select(RESULT_LEAD, NAME = SCH_NAME, CITY = SCH_ZIP, ZIPCODE = SCH_ZIP)
+```
+
+Replacing NA with zero.
+
+```{r}
+schools[is.na(schools)] <- 0
+```
+
+
+```{r School Lead}
+#The result is non-detected for lead if the amount of lead in the water was less than 1 ppb.
+
+#Creating categorical variable
+
+#1-4
+schools$lead_cat[0<= schools$RESULT_LEAD & schools$RESULT_LEAD <=4 ] <- 1
+
+#5 to 14
+schools$lead_cat[5<= schools$RESULT_LEAD & schools$RESULT_LEAD <=14 ] <- 2
+
+#15 to 49
+schools$lead_cat[15<= schools$RESULT_LEAD & schools$RESULT_LEAD <=49 ] <- 3
+
+#50 to 149
+schools$lead_cat[50<= schools$RESULT_LEAD & schools$RESULT_LEAD <=149 ] <- 4
+
+#150 and above
+schools$lead_cat[schools$RESULT_LEAD >=150 ] <- 5
+```
+
+
+#Tables
+Number of schools, establishments, sentinel
+Mean level of lead for each group
+Proportion of observations above 15 ppb
+
+
+```{r}
+#create identifer for each group
+ schools %<>% mutate(type = "School", CITY="Flint")
+ sentinel %<>% mutate(type = "Sentinel")
+  eb %<>% mutate(type = "Establishment")
+```
+
+```{r}
+#Append records
+
+test <- full_join(schools, sentinel)
+
+test <- full_join(test, eb)
+```
+
+```{r}
+test %>%
+  mutate(prop= ifelse(RESULT_LEAD >=15,1,0)) %>%
+  group_by(type) %>%
+  summarise(Records= n(), "Mean Lead"= mean(RESULT_LEAD), "% High Lead" = (mean(prop) * 100), "Max Lead" = max(RESULT_LEAD))
+```
+
+```{r}
+#Histogram
+na.omit(test) %>%
+  ggplot(aes(x=RESULT_LEAD)) +
+  geom_histogram(aes(fill=type),binwidth=2.5) +
+  facet_grid(~type, scales="free") +
+  lims(x= c(0,100), y= c(0,200)) +
+  theme_light() +
+  scale_fill_brewer(palette="Dark2") +
+  labs(title="Histogram of Lead Results",
+       x="Lead (ppb)",
+       y="Count",
+       fill="Type") +
+  theme(strip.background =element_rect(fill="darkgrey"))
+```
+
+
+Write final CSV file.
+
+```{r}
+write.csv(test, file="dataqualitypoints_13nov.csv")
+```
+
+# Create correlation matrix
+
+References:
+https://www.r-graph-gallery.com/199-correlation-matrix-with-ggally.html
+
+Reading table generated from ArcGIS from a spatial join between all the data quality points and their census tracts.
+
+```{r}
+acs <- read.csv("ACS_Flint_SpatialJoin_TableToExcel.csv")
+```
+
+```{r}
+#Overall
+info <- acs %>%
+  mutate(highpb = ifelse(lead_cat >=3,1,0)) %>%
+  select(Est..Black.or.Af..Amer..alone, Est..White.alone, Est..Total.1, Est.....10K, BelowPoverty, highpb, lead_cat, Est..Med..Year)
+
+names(info) <- c("BlackHH", "WhiteHH","TotalPop", "Housing10k","BelowPvty", "HighLead","lead_cat", "HHAge")
+
+info %<>%
+  group_by(BlackHH, WhiteHH, TotalPop, Housing10k, BelowPvty, HHAge) %>%
+  mutate(highpb = ifelse(lead_cat >=3,1,0)) %>%
+  summarise(HighLead = mean(highpb, na.omit=TRUE)) %>%
+  na.omit()
+  
+```
+
+
+```{r}
+info %>%
+  ggcorr(., method= c("everything", "pearson"),label=TRUE,label_round=2,layout.exp=2.5) +
+  theme(plot.title= element_text(size=15, hjust=0.75))
+
+```
+
