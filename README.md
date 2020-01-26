@@ -4,6 +4,8 @@
 
 This project analyzed water lead tests collected during the Flint water crisis. The water samples were taken between 2015 and 2017 and were published by the Michigan Department of Health and Human Services. Samples were collected at schools, establishments, and sentinel stations (see histogram). I analyzed how the racial composition of households, estimated home values, and age of home structures were correlated with the percentage of water samples with lead levels above the federal action level of 15 parts per billion (ppb).
 
+![alt text](https://github.com/ilsep93/Geospatial-Lead-Results/blob/master/Paniagua_URP520_Poster.pdf)
+
 ## Methods
 
 ### Adding stand-alone table to ArcGIS
